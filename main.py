@@ -5,7 +5,7 @@ import os
 
 app = FastAPI()
 
-model = YOLO("best.pt")
+model = YOLO("api_telhad/best.pt")
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
