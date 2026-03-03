@@ -3,10 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from ultralytics import YOLO
 import shutil
 import os
+import uuid
 
 app = FastAPI()
 
-# 🔥 LIBERAR CORS (para funcionar no Loveable)
+# 🔥 LIBERAR CORS (para funcionar no Vercel)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,45 +16,44 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 🔥 CAMINHO CORRETO DO MODELO NO RENDER
+# 🔥 CAMINHO DO MODELO NO RENDER
 model = YOLO("api_telhad/best.pt")
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
 
-    # salvar imagem temporária
-    with open(file.filename, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    # criar nome único para evitar conflito
+    temp_filename = f"{uuid.uuid4()}.jpg"
 
-    # rodar modelo
-    results = model(file.filename)
+    try:
+        # salvar imagem temporária
+        with open(temp_filename, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
 
-    # pegar nomes das classes
-    names = model.names
+        # rodar modelo
+        results = model(temp_filename)
 
-    detections = []
+        names = model.names
+        detections = []
 
-    for r in results:
-        for box in r.boxes:
-            class_id = int(box.cls[0])
-            class_name = names[class_id]
-            detections.append(class_name)
+        for r in results:
+            for box in r.boxes:
+                class_id = int(box.cls[0])
+                class_name = names[class_id]
+                detections.append(class_name)
 
-    # contar total
-    total_telhados = len(detections)
+        total_telhados = len(detections)
 
-    # contar por tipo
-    contagem = {}
-    for classe in detections:
-        if classe in contagem:
-            contagem[classe] += 1
-        else:
-            contagem[classe] = 1
+        contagem = {}
+        for classe in detections:
+            contagem[classe] = contagem.get(classe, 0) + 1
 
-    # apagar imagem temporária
-    os.remove(file.filename)
+        return {
+            "total_telhados": total_telhados,
+            "por_material": contagem
+        }
 
-    return {
-        "total_telhados": total_telhados,
-        "por_material": contagem
-    }
+    finally:
+        # apagar imagem temporária se existir
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
