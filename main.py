@@ -6,6 +6,7 @@ import os
 
 app = FastAPI()
 
+# 🔥 LIBERAR CORS (para funcionar no Loveable)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,6 +15,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 🔥 CAMINHO CORRETO DO MODELO NO RENDER
 model = YOLO("api_telhad/best.pt")
 
 @app.post("/predict")
